@@ -213,7 +213,7 @@ public struct LlamaCommon {
         piece.withUnsafeMutableBytes { buffer in
             nChars = Int(
                 llama_token_to_piece(
-                    llama_get_model(ctx), token, buffer.baseAddress,
+                    llama_model_get_vocab(llama_get_model(ctx)), token, buffer.baseAddress,
                     Int32(buffer.count), 0, special))
         }
         if nChars < 0 {
@@ -222,7 +222,7 @@ public struct LlamaCommon {
             piece.withUnsafeMutableBytes { buffer in
                 check = Int(
                     llama_token_to_piece(
-                        llama_get_model(ctx), token, buffer.baseAddress,
+                        llama_model_get_vocab(llama_get_model(ctx)), token, buffer.baseAddress,
                         Int32(buffer.count), 0, special))
             }
             guard check == -nChars else {
