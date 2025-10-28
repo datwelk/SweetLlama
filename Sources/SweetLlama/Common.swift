@@ -2,6 +2,12 @@ import Foundation
 import llama
 
 public struct CommonParams {
+    public enum FlashAttentionType: Int32, RawRepresentable{
+        case auto = -1
+        case disabled = 0
+        case enabled = 1
+    }
+    
     public var nPredict: Int = -1
     public var nCTX: Int = 4096
     public var nBatch: Int = 512
@@ -12,7 +18,7 @@ public struct CommonParams {
     public var sparams: SamplerParams = .init()
 
     public var antiprompt: [String] = []
-    public var flashAttn: Bool = false
+    public var flashAttnType: FlashAttentionType = .auto
     public var noPerf: Bool = false
     public var useMmap: Bool = true
     public var useMlock: Bool = false
@@ -44,17 +50,17 @@ public struct LlamaCommon {
         -> CommonInitResult
     {
         let mparams = modelParamsFrom(params)
-        let model = llama_load_model_from_file(modelPath, mparams)
+        let model = llama_model_load_from_file(modelPath, mparams)
         guard let model = model else {
             print("Failed to load model")
             return .init()
         }
 
         let cparams = contextParamsFrom(params)
-        let ctx = llama_new_context_with_model(model, cparams)
+        let ctx = llama_init_from_model(model, cparams)
         guard let ctx = ctx else {
             print("Failed to create context")
-            llama_free_model(model)
+            llama_model_free(model)
             return .init()
         }
 
@@ -93,7 +99,7 @@ public struct LlamaCommon {
             cparams.n_threads = Int32(params.nThreads)
             cparams.n_threads_batch = Int32(params.nThreads)
         }
-        cparams.flash_attn = params.flashAttn
+        cparams.flash_attn_type = llama_flash_attn_type(params.flashAttnType.rawValue)
         cparams.no_perf = params.noPerf
 
         return cparams
@@ -114,15 +120,10 @@ public struct LlamaCommon {
         llama_sampler_chain_add(
             chain,
             llama_sampler_init_penalties(
-                llama_n_vocab(model),
-                llama_token_eos(model),
-                llama_token_nl(model),
                 Int32(params.penaltyLastN),
                 params.penaltyRepeat,
                 params.penaltyFrequency,
-                params.penaltyPresent,
-                false,
-                false))
+                params.penaltyPresent))
 
         if params.mirostat == .none {
             do {
@@ -138,6 +139,7 @@ public struct LlamaCommon {
                         chain,
                         llama_sampler_init_dry(
                             model,
+                            llama_model_n_ctx_train(model),
                             params.dryMultiplier,
                             params.dryBase,
                             Int32(params.dryAllowedLength),
@@ -183,7 +185,7 @@ public struct LlamaCommon {
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_mirostat(
-                    llama_n_vocab(model),
+                    llama_vocab_n_tokens(model),
                     seed,
                     params.mirostatTau,
                     params.mirostatEta,
