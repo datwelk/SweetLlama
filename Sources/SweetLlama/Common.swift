@@ -246,7 +246,7 @@ public struct LlamaCommon {
             buffer, initializedCount in
             initializedCount = Int(
                 llama_tokenize(
-                    model, text, Int32(utf8Count), buffer.baseAddress,
+                    llama_model_get_vocab(model), text, Int32(utf8Count), buffer.baseAddress,
                     Int32(n_tokens), addSpecial, parseSpecial)
             )
         }
