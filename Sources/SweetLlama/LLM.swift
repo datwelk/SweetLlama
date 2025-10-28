@@ -226,7 +226,7 @@ public class LLM {
         embd.append(result)
         nRemaining -= 1
 
-        if !embd.isEmpty && llama_vocab_is_eog(model, result) {
+        if !embd.isEmpty && llama_vocab_is_eog(llama_model_get_vocab(model), result) {
             hasNextToken = false
             stoppedEos = true
             return result
